@@ -1,0 +1,24 @@
+{
+  "name": "mbaynton/launch-cli-editor",
+  "type": "library",
+  "description": "Launch the user's preferred terminal editor to input or update large strings",
+  "keywords": ["cli", "console", "terminal", "text editor", "editor"],
+  "homepage": "https://github.com/mbaynton/launch-cli-editor",
+  "require": {
+    "wp-cli/php-cli-tools": "^0.11.1"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "5.4.*"
+  },
+  "authors": [
+    {
+      "name": "Mike Baynton",
+      "email": "mike@mbaynton.com"
+    }
+  ],
+  "autoload": {
+    "psr-0": {
+      "cli": "lib/"
+    }
+  }
+}
