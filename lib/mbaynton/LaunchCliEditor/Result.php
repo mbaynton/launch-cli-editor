@@ -24,7 +24,8 @@ class Result {
   }
 
   public function isChanged() {
-    return strcmp($this->orig_hash, md5_file($this->getFilename(), TRUE) !== 0);
+    $new_hash = md5_file($this->getFilename(), FALSE);
+    return strcmp($this->orig_hash, $new_hash) !== 0;
   }
 
   public function __toString() {

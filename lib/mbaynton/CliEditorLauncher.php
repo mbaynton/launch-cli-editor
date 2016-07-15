@@ -61,10 +61,10 @@ class CliEditorLauncher {
   public function editString($input) {
     $tmp_f = $this->prepTempFile();
     if (! empty($input) || is_numeric($input)) {
-      file_put_contents($tmp_f, $input);
+      fwrite($tmp_f, $input);
     }
 
-    return $this->launchEditor($tmp_f, TRUE);
+    return $this->launchEditor($this->tmpFileName, TRUE);
   }
 
   public function editFile($filename) {
@@ -72,15 +72,15 @@ class CliEditorLauncher {
   }
 
   protected function launchEditor($filename, $auto_unlink) {
-    $orig = md5_file($filename, TRUE);
+    $orig = md5_file($filename, FALSE);
     $edited = FALSE;
     $banned_editors = [];
     while (! $edited) {
       $editor_binary = $this->locatePreferredEditor($banned_editors);
       if (self::spawnProcess($editor_binary, [$filename]) !== 0) {
         // if we managed to edit the file anyway, ignore the exit code
-        if (strcmp(md5_file($filename, TRUE), $orig) === 0) {
-          cli\out('The editor "' . $editor_binary . '" does not appear to have run successfully.');
+        if (strcmp(md5_file($filename, FALSE), $orig) === 0) {
+          cli\out('The editor "' . $editor_binary . '" does not appear to have run successfully. ');
           if (cli\prompt('Choose another editor [y/N]', 'y', '? ') != 'N') {
             $banned_editors[] = $editor_binary;
             $this->clearPreferredEditor();
@@ -95,7 +95,7 @@ class CliEditorLauncher {
       }
     }
 
-    return new Result(TRUE, $filename, $orig, $auto_unlink);
+    return new Result($edited, $filename, $orig, $auto_unlink);
   }
 
   /**
@@ -107,20 +107,34 @@ class CliEditorLauncher {
   protected function locatePreferredEditor($banned_editors = []) {
     // Use environment variable settings without prompting if they're going to
     // work.
-    if ($this->preferredEditor && ! in_array($banned_editors, $this->preferredEditor)) {
+    if ($this->preferredEditor && ! in_array($this->preferredEditor, $banned_editors)) {
       return $this->preferredEditor;
-    } else if ($this->envVarEditor && ! in_array($banned_editors, $this->preferredEditor)) {
+    } else if ($this->envVarEditor && ! in_array($this->envVarEditor, $banned_editors)) {
       $this->preferredEditor = $this->envVarEditor;
     } else {
       $available_editors = $this->locateAvailableEditors();
-      $available_editors['X'] = array_filter($available_editors['X'], function($path) use ($banned_editors) { return ! in_array($banned_editors, $path); }, ARRAY_FILTER_USE_KEY);
-      $available_editors['term'] = array_filter($available_editors['term'], function($path) use ($banned_editors) { return ! in_array($banned_editors, $path); }, ARRAY_FILTER_USE_KEY);
+      $filtered = [];
+      foreach ($available_editors['X'] as $path => $name) {
+        if (! in_array($path, $banned_editors)) {
+          $filtered[$path] = $name;
+        }
+      }
+      $available_editors['X'] = $filtered;
+
+      $filtered = [];
+      foreach ($available_editors['term'] as $path => $name) {
+        if (! in_array($path, $banned_editors)) {
+          $filtered[$path] = $name;
+        }
+      }
+      $available_editors['term'] = $filtered;
+
       $num = count($available_editors['X']) + count($available_editors['term']);
 
       if ($num == 1) {
         $this->preferredEditor = current(array_keys(array_merge($available_editors['X'], $available_editors['term'])));
       } else if ($num == 0) {
-        cli\out('No text editor was found at common locations.');
+        cli\out('No text editor was found at common locations. ');
         $editor = false;
         while (! file_exists($editor)) {
           $editor = cli\prompt('Enter the path to your text editor');
@@ -128,6 +142,7 @@ class CliEditorLauncher {
       } else {
         $choices = array_map(function($item) { return $item . ' (GUI)'; }, $available_editors['X']);
         $choices += $available_editors['term'];
+        cli\out("The following text editors were found on your system:\n");
         $this->preferredEditor = cli\menu($choices, current(array_keys($choices)), 'Which editor do you prefer?');
       }
     }
@@ -142,20 +157,10 @@ class CliEditorLauncher {
 
   public function locateAvailableEditors() {
     if ($this->editorCache === NULL) {
-      // If we have the 'which' utility installed, use it to locate editors
-      // in the user's preferred paths
-      if (file_exists('/usr/bin/which')) {
-        $this->buildEditorCacheFromWhich(self::$defaultTerminalEditorPaths, $this->editorCache['term']);
-        if (strlen(getenv('DISPLAY'))) {
-          $this->buildEditorCacheFromWhich(self::$defaultXEditorPaths, $this->editorCache['X']);
-        }
-      }
-      else {
         $this->buildEditorCacheFromDefaults(self::$defaultTerminalEditorPaths, $this->editorCache['term']);
         if (strlen(getenv('DISPLAY'))) {
           $this->buildEditorCacheFromDefaults(self::$defaultXEditorPaths, $this->editorCache['X']);
         }
-      }
     }
 
     return $this->editorCache;
@@ -169,7 +174,7 @@ class CliEditorLauncher {
     fseek($which_output, 0);
 
     while($abspath = fgets($which_output)) {
-      $cache[$abspath] = basename($abspath);
+      $cache[trim($abspath)] = basename(trim($abspath));
     }
   }
 

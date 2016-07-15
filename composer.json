@@ -4,6 +4,7 @@
   "description": "Launch the user's preferred terminal editor to input or update large strings",
   "keywords": ["cli", "console", "terminal", "text editor", "editor"],
   "homepage": "https://github.com/mbaynton/launch-cli-editor",
+  "license": "MIT",
   "require": {
     "wp-cli/php-cli-tools": "^0.11.1"
   },
@@ -18,7 +19,7 @@
   ],
   "autoload": {
     "psr-0": {
-      "cli": "lib/"
+      "mbaynton": "lib/"
     }
   }
 }
