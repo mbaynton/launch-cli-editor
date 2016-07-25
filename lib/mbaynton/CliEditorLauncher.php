@@ -195,7 +195,7 @@ class CliEditorLauncher {
         $choices = array_map(function($item) { return $item . ' (GUI)'; }, $available_editors['X']);
         $choices += $available_editors['term'];
         cli\out("The following text editors were found on your system:\n");
-        $this->preferredEditor = cli\menu($choices, current(array_keys($choices)), 'Which editor do you prefer?');
+        $this->preferredEditor = cli\menu($choices, current(array_keys($choices)), 'Enter the number of the editor you prefer');
       }
     }
 
@@ -212,6 +212,8 @@ class CliEditorLauncher {
         $this->buildEditorCacheFromDefaults(self::$defaultTerminalEditorPaths, $this->editorCache['term']);
         if (strlen(getenv('DISPLAY'))) {
           $this->buildEditorCacheFromDefaults(self::$defaultXEditorPaths, $this->editorCache['X']);
+        } else {
+          $this->editorCache['X'] = [];
         }
     }
 
