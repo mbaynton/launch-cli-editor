@@ -58,21 +58,51 @@ class CliEditorLauncher {
     }
   }
 
-  public function editString($input) {
+  /**
+   * @param $input string
+   *   The full string to be edited, if starting from an existing value.
+   * @param null $instructions string|null
+   *   Text appended to the end of the file when shown in the editor that is
+   *   not included in the Result.
+   * @return \mbaynton\LaunchCliEditor\Result
+   */
+  public function editString($input, $instructions = NULL) {
     $tmp_f = $this->prepTempFile();
+
     if (! empty($input) || is_numeric($input)) {
       fwrite($tmp_f, $input);
     }
 
-    return $this->launchEditor($this->tmpFileName, TRUE);
+    return $this->launchEditor($this->tmpFileName, TRUE, $instructions);
   }
 
-  public function editFile($filename) {
-    return $this->launchEditor($filename, FALSE);
+  /**
+   * @param $filename string
+   *   The name of the file to open in the editor.
+   * @param $instructions string|null
+   *   Text that will be appended to the end of the file before opening it,
+   *   and truncated from the end of the file again afterwards.
+   * @return \mbaynton\LaunchCliEditor\Result
+   */
+  public function editFile($filename, $instructions) {
+    return $this->launchEditor($filename, FALSE, $instructions);
   }
 
-  protected function launchEditor($filename, $auto_unlink) {
+  protected function launchEditor($filename, $auto_unlink, $instructions = NULL) {
     $orig = md5_file($filename, FALSE);
+
+    // If we have instructions to append to the end of the file, do that now
+    if ($instructions) {
+      if ($this->tmpFile) {
+        fseek($this->tmpFile, 0, SEEK_END);
+        fwrite($this->tmpFile, "\n\n$instructions");
+      } else {
+        $fh = fopen($filename, 'a+');
+        fwrite($fh, "\n\n$instructions");
+        fclose($fh);
+      }
+    }
+
     $edited = FALSE;
     $banned_editors = [];
     while (! $edited) {
@@ -92,6 +122,28 @@ class CliEditorLauncher {
         }
       } else {
         $edited = TRUE;
+      }
+    }
+
+    // Remove the instructions if we added them
+    if ($instructions) {
+      if ($this->tmpFile) {
+        fseek($this->tmpFile, -1 * (strlen($instructions) + 2), SEEK_END);
+        $instructions_readback = fread($this->tmpFile, strlen($instructions) + 2);
+        if (strcmp($instructions_readback, "\n\n" . $instructions) === 0) {
+          fseek($this->tmpFile, 0);
+          ftruncate($this->tmpFile, filesize($filename) - strlen($instructions_readback));
+        }
+      } else {
+        $fh = fopen($filename, 'r+');
+        $expected_content_end = filesize($filename) - strlen($instructions) - 2;
+        fseek($fh, $expected_content_end);
+        $instructions_readback = fread($fh, strlen($instructions) + 2);
+        if (strcmp($instructions_readback, "\n\n" . $instructions) === 0) {
+          fseek($fh, 0);
+          ftruncate($fh, $expected_content_end);
+        }
+        fclose($fh);
       }
     }
 
