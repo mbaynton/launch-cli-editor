@@ -1,0 +1,2 @@
+This sample text comes from a file already on the filesystem, in order
+to demonstrate the editFile() method. Let's change the length.
